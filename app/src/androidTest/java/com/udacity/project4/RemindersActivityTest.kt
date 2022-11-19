@@ -47,6 +47,12 @@ class RemindersActivityTest :
      * As we use Koin as a Service Locator Library to develop our code, we'll also use Koin to test our code.
      * at this step we will initialize Koin related code to be able to use it in out testing.
      */
+
+    @Before
+    fun registerIdlingResource() {
+        IdlingRegistry.getInstance().register(binding)
+    }
+
     @Before
     fun init() {
         stopKoin() // stop the original app koin
@@ -82,57 +88,93 @@ class RemindersActivityTest :
         }
     }
 
-    @Before
-    fun registerIdlingResource() {
-        IdlingRegistry.getInstance().register(binding)
-    }
-
     @After
-    fun unregisterIdlingResource() {
+    fun unregisterIdlingResource() = runBlocking {
         IdlingRegistry.getInstance().unregister(binding)
+
+        reminderDataSource.deleteAllReminders()
     }
 
     // TODO: add End to End testing to the app
     @Test
-    fun successfullyAddNewReminderScenarioTest() {
-        val activity = ActivityScenario.launch(RemindersActivity::class.java)
-        binding.monitorActivity(activity)
+    fun saveReminder() {
+        // GIVEN - On the home screen
+        val activityScenario = ActivityScenario.launch(RemindersActivity::class.java)
+        binding.monitorActivity(activityScenario)
 
-        // click on add new reminder fab
+        // WHEN - Add a new reminder
         onView(withId(R.id.addReminderFAB)).perform(click())
-
-        // add new title
-        onView(withId(R.id.reminderTitle)).perform(typeText("Testing title"))
-        closeSoftKeyboard()
-
-        // add new description
-        onView(withId(R.id.reminderDescription)).perform(typeText("Testing description"))
-        closeSoftKeyboard()
-
-        // click on select reminder location
+        onView(withId(R.id.reminderTitle)).perform(typeText("Title"))
+        onView(withId(R.id.reminderDescription)).perform(typeText("Description"))
         onView(withId(R.id.selectLocation)).perform(click())
-
-        // click on the mapLocation
-        Thread.sleep(2000)
         onView(withId(R.id.map)).perform(longClick())
-
-        // click on confirm button
         onView(withId(R.id.confirm)).perform(click())
-
-        // click on save button
+        closeSoftKeyboard()
         onView(withId(R.id.saveReminder)).perform(click())
 
-        // check if success toast appears
+        // THEN - Verify reminder is displayed on the screen
         onView(withId(R.id.reminderssRecyclerView)).check(
             matches(
                 atPosition(
                     0,
-                    withText("Testing title"),
+                    withText("Title"),
                     R.id.title
                 )
             )
         )
+        onView(withId(R.id.reminderssRecyclerView)).check(
+            matches(
+                atPosition(
+                    0,
+                    withText("Description"),
+                    R.id.description
+                )
+            )
+        )
 
-        activity.close()
+        // Clean up
+        activityScenario.close()
+    }
+
+    @Test
+    fun saveReminder_noTitle() {
+        // GIVEN - On the home screen
+        val activityScenario = ActivityScenario.launch(RemindersActivity::class.java)
+        binding.monitorActivity(activityScenario)
+
+        // WHEN - Add a new reminder
+        onView(withId(R.id.addReminderFAB)).perform(click())
+        onView(withId(R.id.reminderDescription)).perform(typeText("Description"))
+        onView(withId(R.id.selectLocation)).perform(click())
+        onView(withId(R.id.map)).perform(longClick())
+        onView(withId(R.id.confirm)).perform(click())
+        closeSoftKeyboard()
+        onView(withId(R.id.saveReminder)).perform(click())
+
+        // THEN - Verify reminder is displayed on the screen
+        onView(withId(com.google.android.material.R.id.snackbar_text)).check(matches(withText(R.string.err_enter_title)))
+
+        // Clean up
+        activityScenario.close()
+    }
+
+    @Test
+    fun saveReminder_noLocation() {
+        // GIVEN - On the home screen
+        val activityScenario = ActivityScenario.launch(RemindersActivity::class.java)
+        binding.monitorActivity(activityScenario)
+
+        // WHEN - Add a new reminder
+        onView(withId(R.id.addReminderFAB)).perform(click())
+        onView(withId(R.id.reminderTitle)).perform(typeText("Title"))
+        onView(withId(R.id.reminderDescription)).perform(typeText("Description"))
+        closeSoftKeyboard()
+        onView(withId(R.id.saveReminder)).perform(click())
+
+        // THEN - Verify reminder is displayed on the screen
+        onView(withId(com.google.android.material.R.id.snackbar_text)).check(matches(withText(R.string.err_select_location)))
+
+        // Clean up
+        activityScenario.close()
     }
 }

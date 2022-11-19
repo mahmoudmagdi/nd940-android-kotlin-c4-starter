@@ -121,6 +121,7 @@ fun DataBindingIdlingResource.monitorFragment(fragmentScenario: FragmentScenario
 
 fun atPosition(position: Int, matcher: Matcher<View?>, viewId: Int): Matcher<View?> {
     return object : BoundedMatcher<View?, RecyclerView>(RecyclerView::class.java) {
+
         override fun describeTo(description: Description?) {
             description?.appendText("viewId: $viewId - position: $position ")
         }

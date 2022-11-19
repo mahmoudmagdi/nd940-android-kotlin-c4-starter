@@ -6,16 +6,13 @@ import androidx.test.filters.MediumTest
 import androidx.test.platform.app.InstrumentationRegistry
 import com.udacity.project4.locationreminders.data.dto.ReminderDTO
 import com.udacity.project4.locationreminders.data.dto.Result
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.IOException
 
 // TODO: Add testing implementation to the RemindersLocalRepository.kt
 
@@ -26,61 +23,82 @@ import java.io.IOException
 class RemindersLocalRepositoryTest {
 
     private lateinit var remindersDB: RemindersDatabase
+    private lateinit var remindersDao: RemindersDao
     private lateinit var remindersRepo: RemindersLocalRepository
 
     @Before
-    fun createDbAndRepo() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+    fun setup() {
         remindersDB = Room.inMemoryDatabaseBuilder(
-            context,
+            InstrumentationRegistry.getInstrumentation().context,
             RemindersDatabase::class.java
         ).allowMainThreadQueries().build()
-
-        remindersRepo = RemindersLocalRepository(remindersDB.reminderDao())
+        remindersDao = remindersDB.reminderDao()
+        remindersRepo = RemindersLocalRepository(remindersDao)
     }
 
     @After
-    @Throws(IOException::class)
     fun closeDb() {
         remindersDB.close()
     }
 
     @Test
-    fun saveAndGetAllReminders() {
-        GlobalScope.launch(Dispatchers.Main) {
-            val insertedReminder = ReminderDTO(
-                "test title",
-                "test description",
-                "test location",
-                30.00,
-                30.00
-            )
-            remindersDB.reminderDao().saveReminder(
-                insertedReminder
-            )
+    fun saveReminder_retrieveReminder() = runBlocking {
 
-            val allReminders = remindersRepo.getReminders() as Result.Success
-            Assert.assertEquals(allReminders.data[0], insertedReminder)
-        }
+        // GIVEN - A new reminder saved in the database.
+        val reminder = ReminderDTO(
+            title = "title",
+            description = "description",
+            location = "location",
+            latitude = 0.0,
+            longitude = 0.0
+        )
+        remindersRepo.saveReminder(reminder)
+        val result = remindersRepo.getReminder(reminder.id)
+        Assert.assertEquals(result is Result.Success, true)
+        result as Result.Success
+        Assert.assertEquals(result.data.title, reminder.title)
+        Assert.assertEquals(result.data.description, reminder.description)
+        Assert.assertEquals(result.data.location, reminder.location)
+        Assert.assertEquals(result.data.latitude, reminder.latitude)
+        Assert.assertEquals(result.data.longitude, reminder.longitude)
     }
 
     @Test
-    fun saveAndGetOneReminderById() {
-        GlobalScope.launch(Dispatchers.Main) {
-            val insertedReminder = ReminderDTO(
-                "test title",
-                "test description",
-                "test location",
-                30.00,
-                30.00,
-                "testingId"
-            )
-            remindersDB.reminderDao().saveReminder(
-                insertedReminder
-            )
+    fun deleteAllReminders_getReminders() = runBlocking {
+        // GIVEN - A new reminder saved in the database.
+        val reminder = ReminderDTO(
+            title = "title",
+            description = "description",
+            location = "location",
+            latitude = 0.0,
+            longitude = 0.0
+        )
+        remindersRepo.saveReminder(reminder)
+        remindersRepo.deleteAllReminders()
+        val result = remindersRepo.getReminders()
+        Assert.assertEquals(result is Result.Success, true)
+        result as Result.Success
+        Assert.assertEquals(result.data.isEmpty(), true)
+    }
 
-            val allReminders = remindersRepo.getReminder("testingId") as Result.Success
-            Assert.assertEquals(allReminders.data, insertedReminder)
-        }
+    @Test
+    fun getReminderById() = runBlocking {
+        // GIVEN - A new reminder saved in the database.
+        val reminder = ReminderDTO(
+            title = "title",
+            description = "description",
+            location = "location",
+            latitude = 0.0,
+            longitude = 0.0
+        )
+        remindersRepo.saveReminder(reminder)
+        val result = remindersRepo.getReminder(reminder.id)
+        Assert.assertEquals(result is Result.Success, true)
+        result as Result.Success
+        Assert.assertEquals(result.data.title, reminder.title)
+        Assert.assertEquals(result.data.description, reminder.description)
+        Assert.assertEquals(result.data.location, reminder.location)
+        Assert.assertEquals(result.data.latitude, reminder.latitude)
+        Assert.assertEquals(result.data.longitude, reminder.longitude)
     }
 }
